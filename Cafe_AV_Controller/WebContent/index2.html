@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+    <!-- Custom CSS for cafeAV page -->
+    <link href="cafeav-custom.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-a5N7Y/aK3qNeh15eJKGWxsqtnX/wWdSZSKp+81YjTmS15nvnvxKHuzaWwXHDli+4" crossorigin="anonymous"></script>
+    <script src="Atlona_AT_UHD_SW_510W.js"></script>
+    <script src="restConnector.js"></script>
+    
+    <title>Cafe AV Control</title>
+
+<script>
+var HDMI=0;
+var DVD=1;
+var DISPLAYPORT=2;
+var USBC=3;
+var BYOD=4;
+
+var PROJECTOR=0;
+var TV=1; 
+
+var ATLONA_URL="http://192.168.3.26:3000";
+var ATLONA_USER="admin";
+var ATLONA_PW="password123";
+
+$(document).ready(function(){
+	
+	var atlona = new Atlona_AT_UHD_SW_510W(new restConnector(ATLONA_URL,ATLONA_USER,ATLONA_PW),onAtlonaMessage);
+	alert(atlona.getActiveInput());
+// 	var inputToTagMapping = {
+// 			atlona.HDMI1: "#hdmi_select",
+
+// 			atlona.HDMI2: "#dvd_select",
+// 			atlona.DISPLAYPORT: "#displayPort_select",
+// 			atlona.USBC: "#usbc_select",
+// 			atlona.BYOD: "#byod_select"
+// 	};
+	
+    $("#projector_power").click(projector_power_toggle);
+    $("#hdmi_select").click(function () {selectInput(HDMI);});
+    $("#displayPort_select").click(function () {selectInput(DISPLAYPORT);});
+    $("#usbc_select").click(function () {selectInput(USBC);});
+    $("#dvd_select").click(function () {selectInput(DVD);});
+    $("#byod_select").click(function () {selectInput(BYOD);});
+
+    $("#refresh_status").click(updateAtlonaStatus());
+
+//     var inputToTagMapping = {
+// 			atlona.HDMI1: "#hdmi_select",
+// 			atlona.HDMI2: "#dvd_select",
+// 			atlona.DISPLAYPORT: "#displayPort_select",
+// 			atlona.USBC: "#usbc_select",
+// 			atlona.BYOD: "#byod_select"
+// 	};
+
+var onAtlonaMessage = function(message) {
+	switch(message.messageType) {
+	case atlona.MSG_ACTIVE_INPUT_NOTIFICATION:
+		$(inputToTagMapping[message.activeInput]).addClass("btn-info");
+		//TODO: Unstyle the delselected source
+	}
+}
+
+function projector_power_toggle() {
+    //var status = getPowerStatusFor(PROJECTOR);
+    alert("power toggle ");
+}
+
+function selectInput(inputNumber) {
+    alert("Selected " + inputNumber);
+
+}
+
+function updateAtlonaStatus() {
+
+}
+
+});
+</script>
+
+  </head>
+  <body>
+    
+<div class="container">
+  <h3>Cafe AV Control</h3>
+
+<div class="row"> 
+
+    <div class="col">
+    	<button id="projector_power" type="button" class="btn">Projector</button> 
+    </div>
+    <div class="col">
+      <button id="tv_power" type="button" class="btn">TV</button>
+    </div>
+ 
+</div>
+<hr>
+
+<div class="row">
+   <div class="btn-group" role="group" aria-label="Input selection buttons">
+ 
+    <div class="col">
+    	<button id="hdmi_select" type="button" class="btn">HDMI</button>
+    </div>
+    <div class="col">
+      <button id="displayPort_select" type="button" class="btn">DisplayPort</button>
+    </div>
+    <div class="col">
+      <button id="usbc_select"hdmi_select type="button" class="btn">USB-C</button>
+    </div>
+	<div class="col">
+     <button id="dvd_select" type="button" class="btn">DVD Player</button>
+   </div>
+  
+ 
+</div>
+</div>
+<hr>
+
+<div class="row"> 
+
+    <div class="col">
+    	<button id="byod_select" type="button" class="btn">Wireless Device</button> 
+    </div>
+    
+  
+</div>
+<hr>
+<div class="row">
+<div class="col">
+    	<button id="refresh_status" type="button" class="btn">Refresh</button> 
+    </div>
+</div>
+</div>
+
+<footer class="footer">
+      <div class="container">
+        <span class="text-muted">Connected to 192.168.3.26.</span>
+      </div>
+    </footer>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    
+  
+
+
+</body>
+</html>

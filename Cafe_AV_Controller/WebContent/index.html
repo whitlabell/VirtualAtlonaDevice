@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="favicon.ico">
+
+    <title>Cafe AV Controller</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <!--  FontAwesome CSS for icons -->
+    <link href="css/fontawesome-all.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="css/cafeav.css" rel="stylesheet">
+    
+    <!-- Javascript libraries -->
+    <script src="jquery/jquery-3.2.1.slim.min.js"></script>
+    <script src="bootstrap/js/bootstrap.js"></script>
+    <script src="popper/popper.min.js"></script>
+    
+    <!-- Javascript for this web app -->
+    <script src="Atlona_AT_UHD_SW_510W.js"></script>
+    <script src="restConnector.js"></script>
+    
+    <script>
+
+
+var PROJECTOR=0;
+var TV=1; 
+
+
+
+var inputToTagMapping = {
+	0:"USBC",
+	1:"DISPLAYPORT",
+	2:"HDMI3",
+	3:"HDMI4",
+	4:"BYOD"
+};
+
+$(document).ready(function(){
+	
+	var atlona;
+
+	
+    $("#projector_power").click(function() {projector_power_toggle();});
+    $("#tv_power").click(function() {projector_power_toggle();});
+    $("#HDMI3_select").click(function () {atlona.Inputs.HDMI3.select();});
+    $("#DISPLAYPORT_select").click(function () {atlona.Inputs.DISPLAYPORT.select();});
+    $("#USBC_select").click(function () {atlona.Inputs.USBC.select();});
+    $("#HDMI4_select").click(function () {atlona.Inputs.HDMI4.select();});
+    $("#BYOD_select").click(function () {atlona.Inputs.BYOD.select();});
+
+    $("#refresh_status").click(updateAtlonaStatus());
+    
+    $("#analogue_volume_up").click(function() {atlona.Audio.volumeUp(5);});
+    $("#analogue_volume_down").click(function() {atlona.Audio.volumeDown(5);});
+    
+    $("#info_hyperlink").click(function() {
+    	var info = atlona.Platform.getInformation();
+    	alert("Atlona Model: " + info.modelName + "\n" +
+    		  "Firmware:     " + info.firmwareVersion.master + "\n" +
+    		  "MCU:          " + info.firmwareVersion.MCU
+    		 );
+    
+    	});
+	$("#connectionPropertiesModal").on('show.bs.modal', function () { 
+		if (typeof(Storage) !== "undefined") {
+	    	// prepopulate form fields with any stored values
+	    	$("#atlonaUrlField").val(localStorage.getItem("atlonaUrl"));
+	    	$("#atlonaPortField").val(localStorage.getItem("atlonaPort"));
+	    	$("#atlonaUsernameField").val(localStorage.getItem("atlonaUsername"));
+	    	$("#atlonaPasswordField").val(localStorage.getItem("atlonaPassword"));
+	    	$('#connectionSettingsStatusText').html("(Using values stored on your browser)");
+		} else {
+	    	//No Web Storage support, inform user why their values aren't being kept.
+	    	$('#connectionSettingsStatusText').html("Your browser does not allow values to be saved!");
+		}
+	});
+	
+	$("#connectionPropertiesModal").on('hide.bs.modal', function () {
+		if (typeof(Storage) !== "undefined") {
+			//store values to browser - should validate these
+			localStorage.atlonaUrl = $("#atlonaUrlField").val();
+			localStorage.atlonaPort = $("#atlonaPortField").val();
+			localStorage.atlonaUsername = $("#atlonaUsernameField").val();
+			localStorage.atlonaPassword = $("#atlonaPasswordField").val();
+		}
+	});
+    
+function onAtlonaMessage(message) {
+	//alert("onAtlonaMessage: " + message.messageType);
+	$("#status_text").removeClass("alert-danger");
+	$("#status_text").html("");
+	
+	switch(message.messageType) {
+	case Atlona_messageTypes.ACTIVE_INPUT_NOTIFICATION:
+		console.info("Active input change to " + message.activeInput + " (" + inputToTagMapping[message.activeInput] + ").");
+		clearAllInputButtons();
+		styleAsActiveInput(message.activeInput,true);
+		break;
+	case Atlona_messageTypes.VOLUME_STATE_NOTIFICATION:
+		console.info("Volume change to " + message.dbLevelAsString);
+		$("#volume_level").html(message.dbLevelAsString);
+		break;
+	case Atlona_messageTypes.MSG_ERROR_OCCURRED:
+		console.error("Atlona failure message:" + message.error);
+		//alert(message.error);
+		$("#status_text").addClass("alert-danger");
+		$("#status_text").html(message.error);
+		break;
+	
+	case Atlona_messageTypes.TEMPERATURE_NOTIFICATION:
+		console.info("Temperature of Atlona unit is " + message.temperatureAsString);
+		break;
+	case Atlona_messageTypes.DISPLAY_NOTIFICATION:
+		if (message.isOn) {
+			$("#projector_power").removeClass("btn-outline-warning").addClass("btn-warning");
+			$("#tv_power").removeClass("btn-outline-warning").addClass("btn-warning");
+		} else {
+			$("#projector_power").removeClass("btn-warning").addClass("btn-outline-warning");
+			$("#tv_power").removeClass("btn-warning").addClass("btn-outline-warning");
+		}
+		break;
+		
+	case Atlona_messageTypes.DEVICE_INFORMATION:
+		var responseMessage = message;
+		$("#status_text").html(responseMessage.modelName + ", firmware "+ 
+							   responseMessage.firmwareVersion.master + 
+							   ", MCU " + responseMessage.firmwareVersion.MCU);
+	}
+}
+
+function projector_power_toggle() {
+    //The current Atlona API only addresses the main output
+    if ($("#projector_power").hasClass("btn-outline-warning")) {
+    	atlona.Display.powerOn();
+    } else {
+ 
+    	if (confirm("Power Off display?")) atlona.Display.powerOff();
+    }
+    
+}
+
+function selectInput(inputNumber) {
+    console.info("Requested to Select input " + inputNumber + " (" + atlona.InputNames[inputNames] + ")");
+	atlona.switchToInput(inputNumber)
+}
+function updateAtlonaStatus() {
+
+}
+function clearAllInputButtons() {
+	for (i=0;i<5;i++) {
+		styleAsActiveInput(i,false);
+	}
+}
+
+function styleAsActiveInput(input_number, isActive) {
+	var buttonToChange = "#" + inputToTagMapping[input_number] + "_select";
+	if (isActive) {
+		$(buttonToChange).removeClass("btn-outline-primary");
+		$(buttonToChange).addClass("btn-primary");
+	} else {
+		$(buttonToChange).removeClass("btn-primary");
+		$(buttonToChange).addClass("btn-outline-primary");
+	}
+}
+
+var ATLONA_URL="http://192.168.0.107:3000";
+var ATLONA_USER="admin";
+var ATLONA_PW="password123";
+var connector = new restConnector(ATLONA_URL,ATLONA_USER,ATLONA_PW);
+var messageHandlerFunction = onAtlonaMessage;
+atlona = new Atlona_AT_UHD_SW_510W(connector,messageHandlerFunction);
+atlona.getActiveInput();
+atlona.Instruments.getTemperature("celsius");
+
+});
+</script>
+  </head>
+
+  <body>
+
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+      <a class="navbar-brand" href="#">Cafe AV<span id="connection_summary"> - Not connected.</span></a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="#" data-toggle="modal" data-target="#connectionPropertiesModal">Connect.. <span class="sr-only">(current)</span></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Projector..</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">System</a>
+            <div class="dropdown-menu" aria-labelledby="dropdown01">
+              <a class="dropdown-item" href="#">Restart</a>
+              <a class="dropdown-item" href="#">Shutdown</a>
+              <a class="dropdown-item" href="#">Atlona webapp..</a>
+            </div>
+          </li>
+          <li class="nav-item active">
+            <a id="info_hyperlink" class="nav-link" href="#">Info <span class="sr-only">(current)</span></a>
+          </li>
+        </ul>
+        
+      </div>
+    </nav>
+
+    <main role="main" class="container">
+		<div class="row"> 
+
+    <div class="col">
+    	<button id="projector_power" type="button" class="btn btn-outline-warning"><i class="fa fa-power-off"></i> Projector</button> 
+    </div>
+    <div class="col">
+      <button id="tv_power" type="button" class="btn btn-outline-warning"><i class="fa fa-power-off"></i> TV</button>
+    </div>
+ 
+</div>
+<hr>
+
+<div class="row">
+   
+ 
+    <div class="col">
+    	<button id="HDMI3_select" type="button" class="btn btn-outline-primary"><i class="fa fa-thumbs-up"></i> HDMI</button>
+    </div>
+    <div class="col">
+      <button id="DISPLAYPORT_select" type="button" class="btn btn-outline-primary">DisplayPort</button>
+    </div>
+    <div class="col">
+      <button id="USBC_select" type="button" class="btn btn-outline-primary">USB-C</button>
+    </div>
+	<div class="col">
+     <button id="HDMI4_select" type="button" class="btn btn-outline-primary">DVD Player</button>
+	</div>
+
+</div>
+<hr>
+
+<div class="row"> 
+
+    <div class="col-3">
+    	<button id="BYOD_select" type="button" class="btn btn-outline-primary">Wireless<span class="badge badge-light">0</span></button> 
+    </div>
+    <div class="col-auto">
+    	<p id="byod_summary">(No device connected)</p> 
+    </div>
+
+<div class="col-3"><button id="byod_kick" type="button" class="btn btn-outline-error">Kick</button></div>
+</div>
+<hr>
+<div class="row">
+	<div class="col">
+		<div class="btn-group" role="group" aria-label="Audio controls">
+			<button id="analogue_volume_down" type="button" class="btn btn-primary btn-lg fas fa-volume-down"></button>
+			<button id="analogue_volume_mute" type="button" class="btn btn-primary btn-lg fas fa-volume-off"></button>	
+			<button id="analogue_volume_up" type="button" class="btn btn-primary btn-lg fas fa-volume-up"></button>	
+		
+		</div>
+	
+	</div>
+	<div class="col" id="volume_level">Volume Level unknown.</div>
+
+</div>
+<div class="row">
+<div class="col-12 alert" id="status_text"> Status message!</div>
+</div>
+	</main>
+	
+	<!-- Connection properties Modal -->
+<div id="connectionPropertiesModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Alona connection settings</h4>
+      </div>
+      <div class="modal-body">
+      <form>
+      	<div class="form-group">
+      		<label for="atlonaUrlField">Atlona URL</label>
+      		<input type="text" class="form-control" id="atlonaUrlField" aria-describedby="atlonaUrlHelpBlock" required/>
+      		<small id="atlonaUrlHelpBlock"class="form-text text-muted">
+      			Enter the IP address or DNS name of your Atlona device.
+      		</small>
+      	</div>
+      	<div class="form-group">
+      		<label for="atlonaPortField">Atlona Port</label>
+      		<input type="text" class="form-control" id="atlonaPortField" aria-describedby="atlonaPortHelpBlock"/>
+      		<small id="atlonaPortHelpBlock" class="form-text text-muted">
+      			Enter the port that the Atlona device is listening on, or leave blank for default.
+      		</small>
+      	</div>
+      	<div class="form-group">
+      		<label for="atlonaUsernameField">Username</label>
+      		<input type="text" class="form-control" id="atlonaUsernameField" aria-describedby="atlonaUsernameHelpBlock"/>
+      		<small id="atlonaUsernameHelpBlock" class="form-text text-muted">
+      			Enter the Administrator username set on the Atlona device.
+      		</small>
+      	</div>
+      	<div class="form-group">
+      		<label for="atlonaPasswordField">Password</label>
+      		<input type="password" class="form-control" id="atlonaPasswordField" aria-describedby="atlonaPasswordHelpBlock" required/>
+      		<small id="atlonaPasswordHelpBlock" class="form-text text-muted">
+      			Enter the password set on the Atlona device for the given User. 
+      		</small>
+      </div>
+    </form>
+      <p id="connectionSettingsStatusText">Some text in the modal.</p>
+      
+      </div>
+        
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
