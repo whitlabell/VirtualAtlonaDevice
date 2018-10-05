@@ -91,8 +91,8 @@ function Atlona_AT_UHD_SW_510W(connector,guiCallback) {
 
 //Event handlers
 function handleAtlonaErrorMessage(that,error) {
-	console.log(error);
-	var errorObject = new ErrorNotification(error);
+	console.error(error.cmdURL.href + " - " + error.message);
+	var errorObject = new ErrorNotification(error.message);
 	that.clientCallback(errorObject);
 }
 
@@ -242,9 +242,9 @@ function ActiveInputNotification(activeInput){
 		
 }
 
-function ErrorNotification(event) {
+function ErrorNotification(errorMessage) {
 	this.messageType = this.MSG_ERROR_OCCURRED;
-	this.error = event;
+	this.message = errorMessage;
 }
 	
 function OutputPowerNotification(powerStatus) {

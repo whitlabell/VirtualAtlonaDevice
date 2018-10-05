@@ -22,7 +22,8 @@
     <script src="bootstrap/js/bootstrap.js"></script>
     <script src="popper/popper.min.js"></script>
     
-    <!-- Javascript for this web app -->
+		<!-- Javascript for this web app -->
+		<script src="config.js"></script>
     <script src="Atlona_AT_UHD_SW_510W.js"></script>
     <script src="restConnector.js"></script>
     
@@ -31,7 +32,7 @@
 
 var PROJECTOR=0;
 var TV=1; 
-
+var atlona;
 
 
 var inputToTagMapping = {
@@ -44,8 +45,8 @@ var inputToTagMapping = {
 
 $(document).ready(function(){
 	
-	var atlona;
-
+	//var atlona;
+	var atlonaSettings = new AtlonaSettings(localStorage);
 	
     $("#projector_power").click(function() {projector_power_toggle();});
     $("#tv_power").click(function() {projector_power_toggle();});
@@ -70,26 +71,26 @@ $(document).ready(function(){
     	});
 	$("#connectionPropertiesModal").on('show.bs.modal', function () { 
 		if (typeof(Storage) !== "undefined") {
-	    	// prepopulate form fields with any stored values
-	    	$("#atlonaUrlField").val(localStorage.getItem("atlonaUrl"));
-	    	$("#atlonaPortField").val(localStorage.getItem("atlonaPort"));
-	    	$("#atlonaUsernameField").val(localStorage.getItem("atlonaUsername"));
-	    	$("#atlonaPasswordField").val(localStorage.getItem("atlonaPassword"));
+				$("#atlonaUrlField").val(atlonaSettings.HOST);
+				$("#atlonaPortField").val(atlonaSettings.PORT);
+				$("#atlonaUsernameField").val(atlonaSettings.USERNAME);
+				$("#atlonaPasswordField").val(atlonaSettings.PASSWORD);
 	    	$('#connectionSettingsStatusText').html("(Using values stored on your browser)");
 		} else {
-	    	//No Web Storage support, inform user why their values aren't being kept.
 	    	$('#connectionSettingsStatusText').html("Your browser does not allow values to be saved!");
 		}
 	});
 	
 	$("#connectionPropertiesModal").on('hide.bs.modal', function () {
 		if (typeof(Storage) !== "undefined") {
-			//store values to browser - should validate these
-			localStorage.atlonaUrl = $("#atlonaUrlField").val();
-			localStorage.atlonaPort = $("#atlonaPortField").val();
-			localStorage.atlonaUsername = $("#atlonaUsernameField").val();
-			localStorage.atlonaPassword = $("#atlonaPasswordField").val();
+			atlonaSettings.HOST = $("#atlonaUrlField").val();
+			atlonaSettings.PORT = $("#atlonaPortField").val();
+			atlonaSettings.USERNAME = $("#atlonaUsernameField").val();
+			atlonaSettings.PASSWORD = $("#atlonaPasswordField").val();
+			atlonaSettings.save();
 		}
+		
+		atlona = connectToAtlona(atlonaSettings);
 	});
     
 function onAtlonaMessage(message) {
@@ -108,10 +109,10 @@ function onAtlonaMessage(message) {
 		$("#volume_level").html(message.dbLevelAsString);
 		break;
 	case Atlona_messageTypes.MSG_ERROR_OCCURRED:
-		console.error("Atlona failure message:" + message.error);
+		//console.error("Atlona failure message for " + message.error.command + ": " + message.error.message);
 		//alert(message.error);
 		$("#status_text").addClass("alert-danger");
-		$("#status_text").html(message.error);
+		$("#status_text").html(message.message);
 		break;
 	
 	case Atlona_messageTypes.TEMPERATURE_NOTIFICATION:
@@ -170,12 +171,21 @@ function styleAsActiveInput(input_number, isActive) {
 	}
 }
 
-var ATLONA_URL="http://192.168.0.107:3000";
-var ATLONA_USER="admin";
-var ATLONA_PW="password123";
-var connector = new restConnector(ATLONA_URL,ATLONA_USER,ATLONA_PW);
-var messageHandlerFunction = onAtlonaMessage;
-atlona = new Atlona_AT_UHD_SW_510W(connector,messageHandlerFunction);
+function connectToAtlona(settings) {
+	var httpURL = "http://" + settings.HOST + ":" + settings.PORT;
+	var connector = new restConnector(httpURL, settings.USERNAME, settings.PASSWORD);
+	var messageHandlerFunction = onAtlonaMessage;
+	var atlona = new Atlona_AT_UHD_SW_510W(connector,messageHandlerFunction);
+	$("#connection_summary").html(" - " + settings.HOST);
+	return atlona;
+}
+
+if (atlonaSettings.isInvalid()) {
+	$("#connectionPropertiesModal").modal('show'); //show connection settings form
+} else {
+	atlona = connectToAtlona(atlonaSettings);
+}
+
 atlona.getActiveInput();
 atlona.Instruments.getTemperature("celsius");
 
@@ -194,7 +204,7 @@ atlona.Instruments.getTemperature("celsius");
       <div class="collapse navbar-collapse" id="navbarsExampleDefault">
         <ul class="navbar-nav mr-auto">
           <li class="nav-item active">
-            <a class="nav-link" href="#" data-toggle="modal" data-target="#connectionPropertiesModal">Connect.. <span class="sr-only">(current)</span></a>
+            <a id="atlonaSettingsButton" class="nav-link" href="#" data-toggle="modal" data-target="#connectionPropertiesModal">Connect.. <span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="#">Projector..</a>
@@ -290,7 +300,7 @@ atlona.Instruments.getTemperature("celsius");
       <div class="modal-body">
       <form>
       	<div class="form-group">
-      		<label for="atlonaUrlField">Atlona URL</label>
+      		<label for="atlonaUrlField">Atlona Host</label>
       		<input type="text" class="form-control" id="atlonaUrlField" aria-describedby="atlonaUrlHelpBlock" required/>
       		<small id="atlonaUrlHelpBlock"class="form-text text-muted">
       			Enter the IP address or DNS name of your Atlona device.
@@ -324,7 +334,7 @@ atlona.Instruments.getTemperature("celsius");
         
       
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Connect...</button>
       </div>
     </div>
 

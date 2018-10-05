@@ -17,13 +17,16 @@ function restConnector(url,username,password) {
 		var xhr = new XMLHttpRequest();
 		//alert("cmdUrl = " + cmdUrl + ", callBack is " + typeof(this.callBack));
 		var callBack = this.callBack;
+		var errorCallBack = this.errorCallBack;
 		var that = this.that;
 		xhr.onreadystatechange = function() {
 			if (this.readyState == 4) {
 				if (completedSuccessfully(this.status)) {
 					callBack(that,{cmd: cmd, cmdURL: new URL(cmdUrl), message: JSON.parse(this.responseText).result});
 				} else {
-					errorCallBackHandler({command: cmd, cmdURL: new URL(cmdUrl), message: this.responseText});
+					var message = (this.responseText =="") ? "Connection problem. Atlona device refused the API call. Status " + this.status : this.responseText;
+					 
+					errorCallBack(that,{command: cmd, cmdURL: new URL(cmdUrl), message: message});
 				}
 			}
 		};
@@ -35,8 +38,8 @@ function restConnector(url,username,password) {
 		
 	};
 	
-	this.setErrorCallbackHandler = function (handler) {this.errorCallBack = handler};
-	this.setSuccessCallbackHandler = function (that,handler) {console.info("that=" + that);this.that = that;this.callBack = handler};
+	this.setErrorCallbackHandler = function (that,handler) {this.that = that; this.errorCallBack = handler};
+	this.setSuccessCallbackHandler = function (that,handler) {this.that = that;this.callBack = handler};
 	
 	function completedSuccessfully(status) {
 		return (status >=200 && status <=299) ? true : false;
