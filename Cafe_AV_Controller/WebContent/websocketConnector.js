@@ -2,31 +2,36 @@
  * Websocket connector for the Atlona driver
  */
 
-function webSocketConnector(url,username,password,callBackHandler,errorCallbackHandler) {
+function WebsocketConnector(url,username,password) {
 	
 	this.url = url;
+	//username and password are not required to call the Atlona websocket connection.
 	
-	this.errorCallback = errorCallbackHandler;
-	this.callBack = callBackHandler;
 	this.websocket = undefined;
 	this.isConnected = false;
-	
-	this.setErrorCallbackHandler = function(handler) {errorCallback = handler;};
-	
-	websocket = new WebSocket(url);
-	websocket.onopen =    function()             {isConnected = true;};
-	websocket.onerror =   function(errorEvent)   {errorCallback(new ErrorMessage(errorEvent));};
-	websocket.onclose =   function(closeEvent)   {isConnected = false; callback(closeEvent);};
-	websocket.onmessage = function(messageEvent) {callback(JSON.parse(messageEvent.data));};
+	this.that;
+	var errorCallback;
+	var callback;
 	
 	this.send = function(cmd,driverCallback) {
-		if (isConnected) {
+		if (this.isConnected) {
 			websocket.onmessage = driverCallback;
 			websocket.send(cmd);
 		}
 	};
 	
+	this.connect = function() {
+		var that = this.that;
+		websocket = new WebSocket(url);
+		websocket.onopen =    function()             {this.isConnected = true;};
+		websocket.onerror =   function(errorEvent)   {errorCallback(that,new ErrorMessage(errorEvent));};
+		websocket.onclose =   function(closeEvent)   {isConnected = false; callback(that,closeEvent);};
+		websocket.onmessage = function(messageEvent) {callback(that,JSON.parse(messageEvent.data));};
+	};
+	
 	this.close = function() {isConnected = false;websocket.close();};
+	this.setErrorCallbackHandler   = function (that,handler) {this.that = that; errorCallback = handler};
+	this.setSuccessCallbackHandler = function (that,handler) {this.that = that; callback = handler};
 	
 }
 

@@ -20,6 +20,7 @@ function Atlona_AT_UHD_SW_510W(connector,guiCallback) {
 	
 	connector.setErrorCallbackHandler(this,handleAtlonaErrorMessage);
 	connector.setSuccessCallbackHandler(this,handleAtlonaResponse);
+	connector.connect();
 	
 	var responseHandlers = { };
 	

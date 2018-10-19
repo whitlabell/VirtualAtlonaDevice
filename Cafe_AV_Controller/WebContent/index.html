@@ -25,7 +25,7 @@
 		<!-- Javascript for this web app -->
 		<script src="config.js"></script>
     <script src="Atlona_AT_UHD_SW_510W.js"></script>
-    <script src="restConnector.js"></script>
+    <script src="websocketConnector.js"></script>
     
     <script>
 
@@ -172,8 +172,8 @@ function styleAsActiveInput(input_number, isActive) {
 }
 
 function connectToAtlona(settings) {
-	var httpURL = "http://" + settings.HOST + ":" + settings.PORT;
-	var connector = new restConnector(httpURL, settings.USERNAME, settings.PASSWORD);
+	var httpURL = "ws://" + settings.HOST + ":" + settings.PORT;
+	var connector = new WebsocketConnector(httpURL, settings.USERNAME, settings.PASSWORD);
 	var messageHandlerFunction = onAtlonaMessage;
 	var atlona = new Atlona_AT_UHD_SW_510W(connector,messageHandlerFunction);
 	$("#connection_summary").html(" - " + settings.HOST);
