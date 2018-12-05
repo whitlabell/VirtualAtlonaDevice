@@ -7,7 +7,11 @@
  * Written by Gary Bell, February 2018
  */
 
-var http = require('http');
+var app = require('express')();
+var http = require('http').Server(app);
+var WebSocket = require('ws');
+var ws = new WebSocket.Server({ server: http });
+
 var hostname = '192.168.0.107';
 var port = 3000;
 
@@ -66,63 +70,92 @@ var allowableSyntax = {
 		
 };
 
-var server = http.createServer((request, response) => {
-var {method,url} = request;
-console.info("Incoming: Method="+method);
-// Handle OPTIONS queries that originate from browsers doing CORS checks. We will allow all requests.
-if (method == "OPTIONS") {
-	console.info("Handling an OPTIONS request.");
-	response.writeHead(
+/*
+ * HTML REST Handling functions
+ */
+
+app.get('/API',function(request, response) {
+	var {method,url} = request;
+	console.info("Incoming REST request: Method="+method);
+	// Handle OPTIONS queries that originate from browsers doing CORS checks. We will not set any CORS headers.
+	// as that is what the Atlona does
+	if (method == "OPTIONS") {
+		console.info("Handling an OPTIONS request.");
+		response.writeHead(
 			   "204",
 			   "No Content",
 			   {
-			     "access-control-allow-origin": "*",
-			     "access-control-allow-methods": "GET, OPTIONS",
-			     "access-control-allow-headers": "content-type, accept",
-			     "access-control-max-age": -1, // disabled.
+			     //"access-control-allow-origin": "*",
+			     //"access-control-allow-methods": "GET, OPTIONS",
+			     //"access-control-allow-headers": "content-type, accept",
+			     //"access-control-max-age": -1, // disabled.
 			     "content-length": 0
 			   }
 			 );
 			 return( response.end());
-}
+	}
 
-var requestParams = require('querystring').parse( require('url').parse(url).query);
-var cmd = requestParams.method;
-var param = requestParams.parameter; 
-delete requestParams.method; //requestParams only holds command parameters now.
+	var requestParams = require('querystring').parse( require('url').parse(url).query);
+	var cmd = requestParams.method;
+	var param = requestParams.parameter; 
+	delete requestParams.method; //requestParams only holds command parameters now.
  
-var paramCheck = checkUserInput(cmd, requestParams);
-if (paramCheck.ok) {
-	 response.statusCode = 200;
-	 console.info("Received command: " + cmd);
-	 response.setHeader('Content-Type', 'application/json');
-	 response.setHeader('access-control-allow-origin','*');
-	 response.setHeader('access-control-allow-methods','GET,OPTIONS');
+	var paramCheck = checkUserInput(cmd, requestParams);
+	if (paramCheck.ok) {
+		response.statusCode = 200;
+		console.info("Received command: " + cmd);
+		response.setHeader('Content-Type', 'application/json');
+		response.setHeader('access-control-allow-origin','*');
+		response.setHeader('access-control-allow-methods','GET,OPTIONS');
 	  
-	 var responseFunctionName = generateFunctionName(cmd);
-	 var jsonResponse = responseHandlers[responseFunctionName](requestParams);
-	 response.end(JSON.stringify(jsonResponse));
+		var responseFunctionName = generateFunctionName(cmd);
+		var jsonResponse = responseHandlers[responseFunctionName](requestParams);
+		response.end(JSON.stringify(jsonResponse));
 	 
-	 if (internal_state.misc.state === lifecycleStates.SHUTDOWN_REQUESTED) {
-		 console.warn("Shutdown requested, stopping server...");
-		 //server.close();
-		 internal_state.misc.state = lifecycleStates.SHUTDOWN;
-	 }
+		if (internal_state.misc.state === lifecycleStates.SHUTDOWN_REQUESTED) {
+			console.warn("Shutdown requested, stopping server...");
+			//server.close();
+			internal_state.misc.state = lifecycleStates.SHUTDOWN;
+		}
 	  
- } else {
+	} else {
 	 // Request from client is not valid. Need to find out what the actual Atlona device sends back in this case.
 	 console.warn("Invalid command received: " + cmd);
 	 response.statusCode = 400; //BAD REQUEST
 	 response.setHeader('Content-Type', 'text/plain');
 	 response.end(paramCheck.msg);
- }
+	}
   
 });
 
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
+
+
+/*
+ * WEBSOCKET Handling functions
+ */
+http.on('upgrade', function upgrade(request, socket, head) {
+	console.log("html upgrade to websocket requested.");
+	ws.handleUpgrade(request, socket, head, function(ws) {
+		console.log("Upgrade completed.");
+	});
 });
 
+ws.on('connection', function connection(ws2) {
+	  ws2.on('message', function incoming(message) {
+	    console.log('received: %s', message);
+	  });
+
+	  ws2.send('{"result": {"success": true},"jsonrpc": "2.0"}');
+	});
+
+http.listen(port, function() {
+	  console.log(`Server running at http://${hostname}:${port}/`);
+});
+
+
+/*
+ * UTILITY FUNCTIONS
+ */
   function checkUserInput(cmd,kv_params) {
 	  if (allowableSyntax[cmd] === undefined) return {ok : false, msg: cmd + " is not a recognised command. Check Atlona API docs."};
 	  if (allowableSyntax[cmd].length > 0 && kv_params.length == 0 ) return {ok : false, msg : cmd + " needs at least one parameter"};
